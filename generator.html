@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PATTERN RETRIEVAL — PFP GENERATOR</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&family=Major+Mono+Display&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #04060a;
+  --bg2: #070b12;
+  --panel: #0a1018;
+  --ink: #9be8b4;
+  --ink-dim: #3f7a55;
+  --grid: #13361f;
+  --green: #7ee07e;
+  --hot: #ff5544;
+  --amber: #ffd23f;
+  --vio: #b96cff;
+  --org: #ff8c1a;
+  --grey: #c8ccd2;
+  --neon: #2ee6c0;
+  --neon2: #ff3d81;
+  --gridline: rgba(46,230,192,.16);
+  --mono: 'Space Mono', monospace;
+  --term: 'VT323', monospace;
+  --disp: 'Major Mono Display', monospace;
+  --pix: 'Press Start 2P', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 48px;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 99;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 32px;
+  position: relative;
+}
+
+.header-top {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: var(--ink-dim);
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-family: var(--disp);
+  font-size: clamp(18px, 4vw, 28px);
+  letter-spacing: 6px;
+  color: var(--ink);
+  text-shadow: 0 0 20px rgba(155,232,180,0.4);
+  margin-bottom: 6px;
+}
+
+.subhead {
+  font-family: var(--term);
+  font-size: 18px;
+  color: var(--ink-dim);
+  letter-spacing: 3px;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--neon);
+  letter-spacing: 2px;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--gridline);
+  padding: 18px;
+}
+
+.panel-label {
+  font-family: var(--pix);
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--ink-dim);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gridline);
+}
+
+/* PREVIEW PANEL */
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.canvas-wrap {
+  position: relative;
+  width: 300px;
+  height: 300px;
+}
+
+#pfp-canvas {
+  width: 300px;
+  height: 300px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.canvas-corner {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-color: var(--neon);
+  border-style: solid;
+  opacity: 0.6;
+}
+.canvas-corner.tl { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+.canvas-corner.tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
+.canvas-corner.bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
+.canvas-corner.br { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
+.crosshair {
+  position: absolute;
+  pointer-events: none;
+}
+.crosshair-h {
+  position: absolute; top: 50%; left: -6px; right: -6px;
+  height: 1px; background: rgba(46,230,192,0.12);
+}
+.crosshair-v {
+  position: absolute; left: 50%; top: -6px; bottom: -6px;
+  width: 1px; background: rgba(46,230,192,0.12);
+}
+
+.preview-meta {
+  font-family: var(--term);
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.download-btn {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--bg);
+  background: var(--ink);
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 0.1s;
+  width: 100%;
+}
+.download-btn:hover { background: var(--green); }
+.download-btn:active { transform: scale(0.98); }
+
+/* CONTROLS PANEL */
+.section { margin-bottom: 18px; }
+.section-title {
+  font-family: var(--term);
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+}
+
+/* Family selector */
+.family-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.fam-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: left;
+}
+.fam-btn:hover { opacity: 0.8; }
+.fam-btn.active { }
+
+/* Char picker */
+.char-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.char-btn {
+  font-family: var(--term);
+  font-size: 16px;
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--gridline);
+  color: var(--ink-dim);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.char-btn:hover { border-color: var(--ink-dim); color: var(--ink); }
+.char-btn.active { color: var(--bg); }
+
+/* Sliders */
+.slider-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.slider-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--ink-dim);
+  width: 80px;
+  flex-shrink: 0;
+}
+.slider-val {
+  font-family: var(--term);
+  font-size: 14px;
+  color: var(--ink);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 2px;
+  background: var(--gridline);
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px;
+  background: var(--ink);
+  cursor: pointer;
+}
+
+/* BG options */
+.bg-opts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.bg-swatch {
+  height: 28px;
+  border: 1px solid var(--gridline);
+  cursor: pointer;
+  transition: all 0.1s;
+  position: relative;
+}
+.bg-swatch.active::after {
+  content: '✓';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  color: var(--ink);
+  font-family: var(--mono);
+}
+.bg-swatch:hover { border-color: var(--ink-dim); }
+
+/* FX toggles */
+.fx-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.fx-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid var(--gridline);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.fx-btn.on {
+  border-color: var(--neon);
+  color: var(--neon);
+  background: rgba(46,230,192,0.05);
+}
+
+/* Recall animation state indicator */
+.recall-bar {
+  display: flex; gap: 4px; justify-content: center;
+}
+.recall-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-dim);
+  background: transparent;
+  transition: all 0.2s;
+}
+.recall-dot.done { background: var(--ink); border-color: var(--ink); }
+.recall-dot.active { border-color: var(--ink); animation: blink .5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.action-row {
+  display: flex; gap: 8px;
+}
+.action-btn {
+  flex: 1;
+  font-family: var(--pix);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 8px 6px;
+  background: transparent;
+  border: 1px solid var(--ink-dim);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.action-btn:hover { border-color: var(--ink); color: var(--ink); }
+.action-btn.primary {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.action-btn.primary:hover { background: rgba(155,232,180,0.08); }
+
+footer {
+  font-family: var(--term);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--ink-dim);
+  opacity: 0.4;
+  margin-top: 32px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">TRIBUTE TOOL · NOT AFFILIATED · @adamilenich</div>
+  <h1>PATTERN RETRIEVAL</h1>
+  <div class="subhead">PFP GENERATOR · PHOSPHOR EDITION</div>
+  <div class="status-line">STATUS: ONLINE · HEBBIAN · λ=0.35 · 8 PASS</div>
+</header>
+
+<div class="main-grid">
+
+  <!-- LEFT: PREVIEW -->
+  <div class="panel preview-panel">
+    <div class="panel-label">▸ SPECIMEN PREVIEW · 300×300</div>
+
+    <div class="canvas-wrap">
+      <div class="canvas-corner tl"></div>
+      <div class="canvas-corner tr"></div>
+      <div class="canvas-corner bl"></div>
+      <div class="canvas-corner br"></div>
+      <div class="crosshair">
+        <div class="crosshair-h"></div>
+        <div class="crosshair-v"></div>
+      </div>
+      <canvas id="pfp-canvas" width="300" height="300"></canvas>
+    </div>
+
+    <div class="recall-bar" id="recall-bar"></div>
+
+    <div class="preview-meta" id="preview-meta">SELECT A CHARACTER</div>
+
+    <div class="action-row">
+      <button class="action-btn primary" id="btn-corrupt">▸ CORRUPT</button>
+      <button class="action-btn primary" id="btn-recall">▸ RECALL</button>
+      <button class="action-btn" id="btn-loop">⟳ LOOP</button>
+    </div>
+
+    <button class="download-btn" id="btn-download">▾ DOWNLOAD PFP</button>
+  </div>
+
+  <!-- RIGHT: CONTROLS -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="panel">
+      <div class="panel-label">▸ FAMILY · PHOSPHOR COLOR</div>
+      <div class="family-btns" id="family-btns"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">▸ SPECIMEN · SELECT CHARACTER</div>
+      <div class="char-grid" id="char-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">▸ PARAMETERS</div>
+
+      <div class="slider-row">
+        <span class="slider-label">CORRUPTION</span>
+        <input type="range" id="sl-corrupt" min="5" max="90" value="45" step="5">
+        <span class="slider-val" id="vl-corrupt">45%</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">PIXEL SIZE</span>
+        <input type="range" id="sl-pixel" min="4" max="24" value="12" step="2">
+        <span class="slider-val" id="vl-pixel">12</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">GLOW</span>
+        <input type="range" id="sl-glow" min="0" max="20" value="8" step="1">
+        <span class="slider-val" id="vl-glow">8</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">NOISE</span>
+        <input type="range" id="sl-noise" min="0" max="40" value="10" step="2">
+        <span class="slider-val" id="vl-noise">10</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">▸ BACKGROUND</div>
+      <div class="bg-opts" id="bg-opts"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">▸ CRT FX</div>
+      <div class="fx-row" id="fx-row"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>PATTERN RETRIEVAL · ADAM ILENICH · TRIBUTE BY LAOLU · ▮ END OF LINE</footer>
+
+<script>
+const FAMILIES = [
+  { id:'HEBBIAN',   label:'HEBBIAN',        color:'#9be8b4', chars:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') },
+  { id:'CURVES',    label:'CURVES',         color:'#ffd23f', chars:'0123456789'.split('') },
+  { id:'CONTAINERS',label:'CONTAINERS',     color:'#2ee6c0', chars:'()[]{}<>'.split('') },
+  { id:'MARKS',     label:'FLOATING MARKS', color:'#ff3d81', chars:".,!?:;'\"`.".split('').filter(Boolean) },
+  { id:'CROSSBARS', label:'CROSSBARS',      color:'#c8ccd2', chars:'+-=_|'.split('') },
+  { id:'ANGLES',    label:'ANGLES',         color:'#ff8c1a', chars:'/\\^~'.split('') },
+  { id:'DENSE',     label:'DENSE SYMBOLS',  color:'#b96cff', chars:'@#$%&*'.split('') },
+  { id:'GHOSTS',    label:'GHOSTS',         color:'#3f7a55', chars:' /\\'.split('') },
+];
+
+const BITMAPS = {
+  'A':[[0,0,1,0,0],[0,1,0,1,0],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1]],
+  'B':[[1,1,1,0,0],[1,0,0,1,0],[1,1,1,0,0],[1,0,0,1,0],[1,1,1,0,0]],
+  'C':[[0,1,1,1,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[0,1,1,1,0]],
+  'D':[[1,1,1,0,0],[1,0,0,1,0],[1,0,0,1,0],[1,0,0,1,0],[1,1,1,0,0]],
+  'E':[[1,1,1,1,1],[1,0,0,0,0],[1,1,1,0,0],[1,0,0,0,0],[1,1,1,1,1]],
+  'F':[[1,1,1,1,1],[1,0,0,0,0],[1,1,1,0,0],[1,0,0,0,0],[1,0,0,0,0]],
+  'G':[[0,1,1,1,0],[1,0,0,0,0],[1,0,1,1,1],[1,0,0,0,1],[0,1,1,1,0]],
+  'H':[[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1]],
+  'I':[[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
+  'J':[[0,0,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+  'K':[[1,0,0,1,0],[1,0,1,0,0],[1,1,0,0,0],[1,0,1,0,0],[1,0,0,1,0]],
+  'L':[[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1]],
+  'M':[[1,0,0,0,1],[1,1,0,1,1],[1,0,1,0,1],[1,0,0,0,1],[1,0,0,0,1]],
+  'N':[[1,0,0,0,1],[1,1,0,0,1],[1,0,1,0,1],[1,0,0,1,1],[1,0,0,0,1]],
+  'O':[[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+  'P':[[1,1,1,1,0],[1,0,0,0,1],[1,1,1,1,0],[1,0,0,0,0],[1,0,0,0,0]],
+  'Q':[[0,1,1,1,0],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,1,0],[0,1,1,0,1]],
+  'R':[[1,1,1,1,0],[1,0,0,0,1],[1,1,1,1,0],[1,0,1,0,0],[1,0,0,1,0]],
+  'S':[[0,1,1,1,1],[1,0,0,0,0],[0,1,1,1,0],[0,0,0,0,1],[1,1,1,1,0]],
+  'T':[[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]],
+  'U':[[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+  'V':[[1,0,0,0,1],[1,0,0,0,1],[0,1,0,1,0],[0,1,0,1,0],[0,0,1,0,0]],
+  'W':[[1,0,0,0,1],[1,0,0,0,1],[1,0,1,0,1],[1,1,0,1,1],[1,0,0,0,1]],
+  'X':[[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1]],
+  'Y':[[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]],
+  'Z':[[1,1,1,1,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,1,1,1,1]],
+  '0':[[0,1,1,1,0],[1,0,0,1,1],[1,0,1,0,1],[1,1,0,0,1],[0,1,1,1,0]],
+  '1':[[0,0,1,0,0],[0,1,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,1,1,1,0]],
+  '2':[[0,1,1,1,0],[1,0,0,0,1],[0,0,1,1,0],[0,1,0,0,0],[1,1,1,1,1]],
+  '3':[[1,1,1,1,0],[0,0,0,0,1],[0,1,1,1,0],[0,0,0,0,1],[1,1,1,1,0]],
+  '4':[[0,0,1,1,0],[0,1,0,1,0],[1,0,0,1,0],[1,1,1,1,1],[0,0,0,1,0]],
+  '5':[[1,1,1,1,1],[1,0,0,0,0],[1,1,1,1,0],[0,0,0,0,1],[1,1,1,1,0]],
+  '6':[[0,1,1,1,0],[1,0,0,0,0],[1,1,1,1,0],[1,0,0,0,1],[0,1,1,1,0]],
+  '7':[[1,1,1,1,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,0,0,0,0]],
+  '8':[[0,1,1,1,0],[1,0,0,0,1],[0,1,1,1,0],[1,0,0,0,1],[0,1,1,1,0]],
+  '9':[[0,1,1,1,0],[1,0,0,0,1],[0,1,1,1,1],[0,0,0,0,1],[0,1,1,1,0]],
+  '(':[[0,0,1,0,0],[0,1,0,0,0],[0,1,0,0,0],[0,1,0,0,0],[0,0,1,0,0]],
+  ')':[[0,0,1,0,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,1,0,0]],
+  '[':[[0,1,1,0,0],[0,1,0,0,0],[0,1,0,0,0],[0,1,0,0,0],[0,1,1,0,0]],
+  ']':[[0,0,1,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,1,1,0]],
+  '{':[[0,0,1,1,0],[0,1,0,0,0],[1,1,0,0,0],[0,1,0,0,0],[0,0,1,1,0]],
+  '}':[[0,1,1,0,0],[0,0,0,1,0],[0,0,0,1,1],[0,0,0,1,0],[0,1,1,0,0]],
+  '<':[[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0]],
+  '>':[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0]],
+  '+':[[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0]],
+  '-':[[0,0,0,0,0],[0,0,0,0,0],[1,1,1,1,1],[0,0,0,0,0],[0,0,0,0,0]],
+  '=':[[0,0,0,0,0],[1,1,1,1,1],[0,0,0,0,0],[1,1,1,1,1],[0,0,0,0,0]],
+  '_':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[1,1,1,1,1]],
+  '|':[[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]],
+  '/':[[0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,0,0,0,0]],
+  '\\':[[1,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]],
+  '^':[[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1],[0,0,0,0,0],[0,0,0,0,0]],
+  '~':[[0,0,0,0,0],[0,1,0,0,0],[1,0,1,0,1],[0,0,0,1,0],[0,0,0,0,0]],
+  '@':[[0,1,1,1,0],[1,0,1,0,1],[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,0]],
+  '#':[[0,1,0,1,0],[1,1,1,1,1],[0,1,0,1,0],[1,1,1,1,1],[0,1,0,1,0]],
+  '$':[[0,1,1,1,1],[1,0,1,0,0],[0,1,1,1,0],[0,0,1,0,1],[1,1,1,1,0]],
+  '%':[[1,1,0,0,1],[1,1,0,1,0],[0,0,1,0,0],[0,1,0,1,1],[1,0,0,1,1]],
+  '&':[[0,1,1,0,0],[1,0,0,1,0],[0,1,1,0,0],[1,0,0,1,0],[0,1,1,0,1]],
+  '*':[[0,1,0,1,0],[0,0,1,0,0],[1,1,1,1,1],[0,0,1,0,0],[0,1,0,1,0]],
+  '.':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,1,0,0]],
+  ',':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,1,0,0],[0,1,0,0,0]],
+  '!':[[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,1,0,0]],
+  '?':[[0,1,1,1,0],[1,0,0,0,1],[0,0,1,1,0],[0,0,0,0,0],[0,0,1,0,0]],
+  ':':[[0,0,0,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,1,0,0],[0,0,0,0,0]],
+  ';':[[0,0,0,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,1,0,0],[0,1,0,0,0]],
+  '\'':[[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+  '"':[[0,1,0,1,0],[0,1,0,1,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+  '`':[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+  ' ':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+};
+
+const BG_OPTIONS = [
+  { label:'VOID',  color:'#04060a' },
+  { label:'PANEL', color:'#0a1018' },
+  { label:'GRID',  color:'#070f0a' },
+  { label:'PITCH', color:'#000000' },
+  { label:'GRID+', color:'#0d1a10' },
+  { label:'AMBER', color:'#1a1200' },
+  { label:'VIO',   color:'#0d0814' },
+  { label:'NEON',  color:'#001a14' },
+];
+
+const FX_LIST = [
+  { id:'scanlines', label:'SCANLINES', on:true },
+  { id:'vignette',  label:'VIGNETTE',  on:true },
+  { id:'aberration',label:'ABERRATION',on:false },
+  { id:'glow',      label:'GLOW',      on:true },
+  { id:'gridlines', label:'GRID LINES',on:false },
+  { id:'noise',     label:'NOISE',     on:true },
+];
+
+const ROWS=5, COLS=5, N=25, LAMBDA=0.35, PASSES=8;
+
+let state = {
+  family: FAMILIES[0],
+  char: 'A',
+  bgColor: '#04060a',
+  pixelSize: 12,
+  glowAmount: 8,
+  noiseAmount: 10,
+  corruptRate: 0.45,
+  fx: { scanlines:true, vignette:true, aberration:false, glow:true, gridlines:false, noise:true },
+  storedFlat: null,
+  currentFlat: null,
+  pass: 0,
+  looping: false,
+  loopTimer: null,
+};
+
+function hexToRgb(hex) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return [r,g,b];
+}
+
+function flatten(grid){ return grid.flat().map(v=>v===1?1:-1); }
+function buildW(flat){
+  const W=Array.from({length:N},()=>new Float32Array(N));
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(i!==j) W[i][j]=flat[i]*flat[j];
+  return W;
+}
+function recallStep(s, W, A){
+  const n=[...s];
+  for(let i=0;i<N;i++){let h=0; for(let j=0;j<N;j++) h+=W[i][j]*s[j]; h+=LAMBDA*A[i]; n[i]=h>=0?1:-1;}
+  return n;
+}
+function corrupt(s, rate){ return s.map(v=>Math.random()<rate?-v:v); }
+
+const cv = document.getElementById('pfp-canvas');
+const ctx = cv.getContext('2d');
+const W=300, H=300;
+
+function drawPFP() {
+  const { family, char, bgColor, pixelSize, glowAmount, noiseAmount, fx, currentFlat, storedFlat } = state;
+  const color = family.color;
+  const [cr,cg,cb] = hexToRgb(color);
+  const [br,bg2,bb] = hexToRgb(bgColor);
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0,0,W,H);
+
+  if(fx.gridlines) {
+    ctx.strokeStyle = 'rgba(46,230,192,0.08)';
+    ctx.lineWidth = 0.5;
+    const step = pixelSize + 2;
+    for(let x=0;x<W;x+=step){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+    for(let y=0;y<H;y+=step){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+  }
+
+  const flat = currentFlat || storedFlat;
+  if(flat) {
+    const gridW = COLS * pixelSize + (COLS-1) * 2;
+    const gridH = ROWS * pixelSize + (ROWS-1) * 2;
+    const ox = Math.floor((W - gridW) / 2);
+    const oy = Math.floor((H - gridH) / 2);
+
+    if(fx.glow && glowAmount > 0) {
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = glowAmount * 2;
+      for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+        const i=r*COLS+c;
+        if(flat[i]===1) {
+          const x=ox+c*(pixelSize+2), y=oy+r*(pixelSize+2);
+          ctx.fillStyle = color;
+          ctx.fillRect(x,y,pixelSize,pixelSize);
+        }
+      }
+      ctx.restore();
+    }
+
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+      const i=r*COLS+c;
+      const v=flat[i];
+      const origV=storedFlat?storedFlat[i]:null;
+      const x=ox+c*(pixelSize+2), y=oy+r*(pixelSize+2);
+
+      if(v===1) {
+        if(origV!==null && origV!==v) {
+          ctx.fillStyle = '#ffff44';
+          if(fx.glow){ ctx.save(); ctx.shadowColor='#ffff44'; ctx.shadowBlur=6; }
+        } else {
+          ctx.fillStyle = color;
+          if(fx.glow){ ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=glowAmount; }
+        }
+        ctx.fillRect(x,y,pixelSize,pixelSize);
+        if(fx.glow) ctx.restore();
+      } else {
+        if(origV===1 && v===-1) {
+          ctx.fillStyle = 'rgba(255,68,51,0.25)';
+          ctx.fillRect(x,y,pixelSize,pixelSize);
+        } else {
+          ctx.fillStyle = `rgba(${cr},${cg},${cb},0.04)`;
+          ctx.fillRect(x,y,pixelSize,pixelSize);
+        }
+      }
+    }
+  }
+
+  if(fx.noise && noiseAmount > 0) {
+    const imageData = ctx.getImageData(0,0,W,H);
+    const d = imageData.data;
+    for(let i=0;i<d.length;i+=4) {
+      const n = (Math.random()-0.5) * noiseAmount;
+      d[i]   = Math.min(255,Math.max(0,d[i]+n));
+      d[i+1] = Math.min(255,Math.max(0,d[i+1]+n));
+      d[i+2] = Math.min(255,Math.max(0,d[i+2]+n));
+    }
+    ctx.putImageData(imageData,0,0);
+  }
+
+  if(fx.aberration) {
+    const imageData = ctx.getImageData(0,0,W,H);
+    const d = imageData.data;
+    const shift = 3;
+    const tmp = ctx.getImageData(0,0,W,H);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++) {
+      const i=(y*W+x)*4;
+      const ri=(y*W+Math.max(0,x-shift))*4;
+      const bi=(y*W+Math.min(W-1,x+shift))*4;
+      tmp.data[i]   = d[ri];
+      tmp.data[i+1] = d[i+1];
+      tmp.data[i+2] = d[bi+2];
+      tmp.data[i+3] = 255;
+    }
+    ctx.putImageData(tmp,0,0);
+  }
+
+  if(fx.vignette) {
+    const grad = ctx.createRadialGradient(W/2,H/2,W*0.3,W/2,H/2,W*0.72);
+    grad.addColorStop(0,'rgba(0,0,0,0)');
+    grad.addColorStop(1,'rgba(0,0,0,0.72)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  if(fx.scanlines) {
+    for(let y=0;y<H;y+=4) {
+      ctx.fillStyle = 'rgba(0,0,0,0.13)';
+      ctx.fillRect(0,y,W,2);
+    }
+  }
+
+  // char label bottom
+  ctx.font = '10px "Press Start 2P"';
+  ctx.fillStyle = `rgba(${cr},${cg},${cb},0.35)`;
+  ctx.textAlign = 'center';
+  ctx.fillText(char === ' ' ? 'SPC' : char, W/2, H-10);
+}
+
+function selectChar(ch) {
+  if(!BITMAPS[ch]) return;
+  state.char = ch;
+  state.storedFlat = flatten(BITMAPS[ch]);
+  state.currentFlat = [...state.storedFlat];
+  state.pass = 0;
+  stopLoop();
+  updatePassDots();
+  document.getElementById('preview-meta').textContent =
+    '[' + (ch===' '?'SPC':ch) + '] · ' + state.family.id + ' · STORED';
+  drawPFP();
+  buildCharGrid();
+}
+
+function buildFamilyBtns() {
+  const wrap = document.getElementById('family-btns');
+  wrap.innerHTML = '';
+  FAMILIES.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'fam-btn' + (f.id===state.family.id?' active':'');
+    b.textContent = f.label;
+    b.style.borderColor = f.color + (f.id===state.family.id?'':'44');
+    b.style.color = f.color;
+    if(f.id===state.family.id) b.style.background = f.color+'18';
+    b.onclick = () => {
+      state.family = f;
+      state.char = f.chars.find(c=>BITMAPS[c]) || f.chars[0];
+      buildFamilyBtns();
+      buildCharGrid();
+      selectChar(state.char);
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function buildCharGrid() {
+  const wrap = document.getElementById('char-grid');
+  wrap.innerHTML = '';
+  state.family.chars.forEach(ch => {
+    if(!BITMAPS[ch]) return;
+    const b = document.createElement('button');
+    b.className = 'char-btn' + (ch===state.char?' active':'');
+    b.textContent = ch===' '?'·':ch;
+    b.style.borderColor = ch===state.char ? state.family.color : '';
+    b.style.color = ch===state.char ? state.family.color : '';
+    b.style.background = ch===state.char ? state.family.color+'22' : '';
+    b.onclick = () => selectChar(ch);
+    wrap.appendChild(b);
+  });
+}
+
+function buildBgOpts() {
+  const wrap = document.getElementById('bg-opts');
+  wrap.innerHTML = '';
+  BG_OPTIONS.forEach(o => {
+    const b = document.createElement('div');
+    b.className = 'bg-swatch' + (o.color===state.bgColor?' active':'');
+    b.style.background = o.color;
+    b.style.borderColor = o.color===state.bgColor ? state.family.color : 'rgba(46,230,192,0.16)';
+    b.title = o.label;
+    b.onclick = () => { state.bgColor=o.color; buildBgOpts(); drawPFP(); };
+    wrap.appendChild(b);
+  });
+}
+
+function buildFxBtns() {
+  const wrap = document.getElementById('fx-row');
+  wrap.innerHTML = '';
+  FX_LIST.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'fx-btn' + (state.fx[f.id]?' on':'');
+    b.textContent = f.label;
+    b.onclick = () => { state.fx[f.id]=!state.fx[f.id]; buildFxBtns(); drawPFP(); };
+    wrap.appendChild(b);
+  });
+}
+
+function updatePassDots() {
+  const wrap = document.getElementById('recall-bar');
+  wrap.innerHTML = '';
+  for(let i=0;i<PASSES;i++) {
+    const d = document.createElement('div');
+    d.className = 'recall-dot' + (i<state.pass?' done':'') + (i===state.pass&&state.pass<PASSES?' active':'');
+    d.style.borderColor = state.family.color + '55';
+    if(i<state.pass){ d.style.background=state.family.color; d.style.borderColor=state.family.color; }
+    wrap.appendChild(d);
+  }
+}
+
+function doCorrupt() {
+  if(!state.storedFlat) return;
+  stopLoop();
+  state.currentFlat = corrupt(state.storedFlat, state.corruptRate);
+  state.pass = 0;
+  updatePassDots();
+  document.getElementById('preview-meta').textContent =
+    '[' + (state.char===' '?'SPC':state.char) + '] · CORRUPTED · ' +
+    Math.round(state.corruptRate*100) + '% NOISE';
+  drawPFP();
+}
+
+let recallTimer = null;
+function doRecall() {
+  if(!state.currentFlat || !state.storedFlat) return;
+  clearTimeout(recallTimer);
+  state.pass = 0;
+  const W2 = buildW(state.storedFlat);
+  function step() {
+    if(state.pass >= PASSES) {
+      document.getElementById('preview-meta').textContent =
+        '[' + (state.char===' '?'SPC':state.char) + '] · RETRIEVED \u2726';
+      return;
+    }
+    state.pass++;
+    state.currentFlat = recallStep(state.currentFlat, W2, state.storedFlat);
+    updatePassDots();
+    drawPFP();
+    document.getElementById('preview-meta').textContent =
+      '[' + (state.char===' '?'SPC':state.char) + '] · PASS ' + state.pass + '/8';
+    recallTimer = setTimeout(step, 160);
+  }
+  step();
+}
+
+function stopLoop() {
+  state.looping = false;
+  clearTimeout(state.loopTimer);
+  clearTimeout(recallTimer);
+  document.getElementById('btn-loop').style.color = '';
+  document.getElementById('btn-loop').style.borderColor = '';
+}
+
+function doLoop() {
+  if(state.looping) { stopLoop(); return; }
+  if(!state.storedFlat) return;
+  state.looping = true;
+  document.getElementById('btn-loop').style.color = state.family.color;
+  document.getElementById('btn-loop').style.borderColor = state.family.color;
+  const W2 = buildW(state.storedFlat);
+  function cycle() {
+    if(!state.looping) return;
+    state.currentFlat = corrupt(state.storedFlat, state.corruptRate);
+    state.pass = 0;
+    updatePassDots();
+    drawPFP();
+    let p = 0;
+    function step() {
+      if(!state.looping) return;
+      if(p >= PASSES) { state.loopTimer = setTimeout(cycle, 900); return; }
+      p++; state.pass = p;
+      state.currentFlat = recallStep(state.currentFlat, W2, state.storedFlat);
+      updatePassDots();
+      drawPFP();
+      document.getElementById('preview-meta').textContent =
+        '[' + (state.char===' '?'SPC':state.char) + '] · LOOP · PASS ' + p + '/8 \u27f3';
+      state.loopTimer = setTimeout(step, 150);
+    }
+    state.loopTimer = setTimeout(step, 500);
+  }
+  cycle();
+}
+
+// Sliders
+['corrupt','pixel','glow','noise'].forEach(id => {
+  const sl = document.getElementById('sl-'+id);
+  const vl = document.getElementById('vl-'+id);
+  sl.oninput = () => {
+    const v = parseInt(sl.value);
+    if(id==='corrupt'){ state.corruptRate=v/100; vl.textContent=v+'%'; }
+    if(id==='pixel')  { state.pixelSize=v; vl.textContent=v; }
+    if(id==='glow')   { state.glowAmount=v; vl.textContent=v; }
+    if(id==='noise')  { state.noiseAmount=v; vl.textContent=v; }
+    drawPFP();
+  };
+});
+
+document.getElementById('btn-corrupt').onclick = doCorrupt;
+document.getElementById('btn-recall').onclick = doRecall;
+document.getElementById('btn-loop').onclick = doLoop;
+
+document.getElementById('btn-download').onclick = () => {
+  const link = document.createElement('a');
+  link.download = 'pattern-retrieval-pfp-' + state.char.replace(' ','SPC') + '.png';
+  link.href = cv.toDataURL('image/png');
+  link.click();
+};
+
+buildFamilyBtns();
+buildCharGrid();
+buildBgOpts();
+buildFxBtns();
+updatePassDots();
+selectChar('A');
+</script>
+</body>
+</html>
